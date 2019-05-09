@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.variflight.mapper.TUserMapper">
+
+    <resultMap id="BaseResultMap" type="TUser">
+        <id column="id" property="id" />
+        <result column="user_name" property="userName" />
+        <result column="real_name" property="realName" />
+        <result column="sex" property="sex" />
+        <result column="mobile" property="mobile" />
+        <result column="email" property="email" />
+        <result column="note" property="note" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+		id, user_name, real_name, sex, mobile, email, note, position_id
+	</sql>
+
+    <!--测试foreach用于in-->
+    <select id="selectForeach4In" resultMap="BaseResultMap">
+        select
+           <include refid="Base_Column_List" />
+        from t_user a
+        where a.user_name in
+            <foreach collection="array" open="(" close=")" item="userName"
+                     index="i" separator=",">
+                #{userName}
+            </foreach>
+    </select>
+
+    <insert id="insertForeach4Batch" useGeneratedKeys="true" keyProperty="id">
+        insert into t_user (user_name, real_name,
+          sex, mobile,email,note,
+          position_id)
+        values
+        <foreach collection="list" separator="," item="user">
+            (
+            #{user.userName,jdbcType=VARCHAR},
+            #{user.realName,jdbcType=VARCHAR},
+            #{user.sex,jdbcType=TINYINT},
+            #{user.mobile,jdbcType=VARCHAR},
+            #{user.email,jdbcType=VARCHAR},
+            #{user.note,jdbcType=VARCHAR},
+            #{user.position.id,jdbcType=INTEGER}
+            )
+        </foreach>
+    </insert>
+
+    <insert id="insertSelective" parameterType="TUser" useGeneratedKeys="true" keyProperty="id">
+        insert into t_user
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">
+                id,
+            </if>
+            <if test="userName != null">
+                user_name,
+            </if>
+            <if test="realName != null">
+                real_name,
+            </if>
+            <if test="sex != null">
+                sex,
+            </if>
+            <if test="mobile != null">
+                mobile,
+            </if>
+            <if test="email != null">
+                email,
+            </if>
+            <if test="note != null">
+                note,
+            </if>
+            <if test="position != null">
+                position_id,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">
+                #{id,jdbcType=INTEGER},
+            </if>
+            <if test="userName != null">
+                #{userName,jdbcType=VARCHAR},
+            </if>
+            <if test="realName != null">
+                #{realName,jdbcType=VARCHAR},
+            </if>
+            <if test="sex != null">
+                #{sex,jdbcType=TINYINT},
+            </if>
+            <if test="mobile != null">
+                #{mobile,jdbcType=VARCHAR},
+            </if>
+            <if test="email != null">
+                #{email,jdbcType=VARCHAR},
+            </if>
+            <if test="note != null">
+                #{note,jdbcType=VARCHAR},
+            </if>
+            <if test="position != null">
+                #{position.id,jdbcType=INTEGER},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateIfAndSetOper" parameterType="TUser">
+            update t_user
+            <set>
+                <if test="userName != null">
+                    user_name = #{userName,jdbcType=VARCHAR},
+                </if>
+                <if test="realName != null">
+                    real_name = #{realName,jdbcType=VARCHAR},
+                </if>
+                <if test="sex != null">
+                    sex = #{sex,jdbcType=TINYINT},
+                </if>
+                <if test="mobile != null">
+                    mobile = #{mobile,jdbcType=VARCHAR},
+                </if>
+                <if test="email != null">
+                    email = #{email,jdbcType=VARCHAR},
+                </if>
+                <if test="note != null">
+                    note = #{note,jdbcType=VARCHAR},
+                </if>
+                <if test="position != null">
+                    position_id = #{position.id,jdbcType=INTEGER},
+                </if>
+            </set>
+            where id = #{id,jdbcType=INTEGER}
+    </update>
+    <!--
+        Tips:
+         1、resultMap可以通过使用extends实现继承关系；
+         2、关联的表查询的类添加前缀
+         3、通过添加完整的命名空间，可以引用其他xml文件的resultMap
+    -->
+    <!-- 一对一  嵌套结果：使用嵌套结果映射来处理重复对联合结果对子集 -->
+    <resultMap id="userAndPosition1" extends="BaseResultMap" type="TUser">
+        <association property="position" javaType="TPosition" columnPrefix="post_">
+            <id column="id" property="id"/>
+            <result column="name" property="postName"/>
+            <result column="note" property="note"/>
+        </association>
+    </resultMap>
+    <!--
+        1、aggressiveLazyLoading：当开启时，任何方法的调用都会加载该对象的所有属性。否则，每个属性会 按需加载;默认为true;
+        mybatis-config.xml中<settings></settings>增加 '<setting name="aggressiveLazyLoading" value="false" />'
+
+        2、fetchType :数据加载方式，可选值为 lazy 和 eager，分别为延迟加载和积极加载 ，这个配置会覆盖全局的 lazyLoadingEnabled 配置
+    -->
+    <!-- 一对一 嵌套查询：通过执行另外一个SQL映射语句来返回预期对复杂类型 -->
+    <resultMap id="userAndPosition2" extends="BaseResultMap" type="TUser">
+        <association property="position" fetchType="lazy"  column="position_id"
+                     select="com.variflight.mapper.TPositionMapper.selectByPrimaryKey" />
+    </resultMap>
+
+    <select id="selectUserPosition1" resultMap="userAndPosition1">
+		select
+		    a.id,
+		    user_name,
+			real_name,
+			sex,
+			mobile,
+			email,
+			a.note,
+			b.id  post_id,
+			b.post_name,
+			b.note post_note
+		from t_user a,
+			t_position b
+		where a.position_id = b.id
+	</select>
+    <select id="selectUserPosition2" resultMap="userAndPosition2">
+		select
+		a.id,
+		a.user_name,
+		a.real_name,
+		a.sex,
+		a.mobile,
+		a.position_id
+		from t_user a
+	</select>
+
+    <resultMap id="userAndJobs1" extends="BaseResultMap" type="TUser">
+        <collection property="jobs"
+                    ofType="com.variflight.entity.TJobHistory" >
+            <result column="comp_name" property="compName" jdbcType="VARCHAR" />
+            <result column="years" property="years" jdbcType="INTEGER" />
+            <result column="title" property="title" jdbcType="VARCHAR" />
+        </collection>
+    </resultMap>
+    <select id="selectUserJobs1" resultMap="userAndJobs1">
+		select
+		a.id,
+		a.user_name,
+		a.real_name,
+		a.sex,
+		a.mobile,
+		b.comp_name,
+		b.years,
+		b.title
+		from t_user a,
+		t_job_history b
+		where a.id = b.user_id
+	</select>
+
+    <resultMap id="userAndJobs2" extends="BaseResultMap" type="TUser">
+        <collection property="jobs" fetchType="lazy" column="id"
+                    select="com.variflight.mapper.TJobHistoryMapper.selectByUserId" />
+    </resultMap>
+
+    <select id="selectUserJobs2" resultMap="userAndJobs2">
+		select
+            a.id,
+            a.user_name,
+            a.real_name,
+            a.sex,
+            a.mobile
+		from t_user a
+	</select>
+
+    <resultMap id="userAndHealthReport" extends="BaseResultMap" type="TUser">
+        <discriminator column="sex"  javaType="int">
+            <case value="1" resultMap="userAndHealthReportMale"/>
+            <case value="2" resultMap="userAndHealthReportFemale"/>
+        </discriminator>
+    </resultMap>
+    <resultMap id="userAndHealthReportMale" extends="userAndHealthReport" type="TUser">
+        <collection property="healthReports" column="id"
+                    select= "com.variflight.mapper.THealthReportMaleMapper.selectByUserId"></collection>
+    </resultMap>
+
+    <resultMap id="userAndHealthReportFemale" extends="userAndHealthReport" type="TUser">
+        <collection property="healthReports" column="id"
+                    select= "com.variflight.mapper.THealthReportFemaleMapper.selectByUserId"></collection>
+    </resultMap>
+    <select id="selectUserHealthReport" resultMap="userAndHealthReport">
+        select
+        <include refid="Base_Column_List" />
+        from t_user a
+    </select>
+
+    <resultMap type="TUser" id="userRoleInfo" extends="BaseResultMap">
+        <collection property="roles" ofType="TRole" columnPrefix="role_">
+            <result column="id" property="id" />
+            <result column="Name" property="roleName" />
+            <result column="note" property="note" />
+        </collection>
+    </resultMap>
+
+    <select id="selectUserRole" resultMap="userRoleInfo">
+		select a.id,
+		      a.user_name,
+		      a.real_name,
+		      a.sex,
+		      a.mobile,
+		      a.note,
+		      b.role_id,
+		      c.role_name,
+		      c.note role_note
+		from t_user a,
+		     t_user_role b,
+		     t_role c
+		where a.id = b.user_id AND
+		      b.role_id = c.id
+     </select>
+
+</mapper>
