@@ -1,8 +1,10 @@
 package com.variflight.mapper;
 
 import com.variflight.entity.TUser;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author XieYufeng
@@ -31,4 +33,10 @@ public interface TUserMapper {
     List<TUser> selectUserHealthReport();
 
     List<TUser> selectUserRole();
+
+    List<TUser> selectByEmailAndSex2(@Param("email")String email, @Param("sex")Byte sex);
+
+    int insert1(TUser record);
+
+    List<TUser> selectByEmailAndSex1(Map<String, Object> param);
 }

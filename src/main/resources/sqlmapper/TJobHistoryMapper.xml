@@ -28,4 +28,14 @@
 		from t_job_history
 		where user_id = #{userId,jdbcType=INTEGER}
 	</select>
+
+	<select id="selectByEmailAndSex2" resultMap="userInfo">
+		select
+		id, user_name, real_name, sex, mobile, email, note,
+		position_id
+		from t_user a
+		where a.email like CONCAT('%', #{email}, '%') and
+		a.sex =
+		#{sex}
+	</select>
 </mapper>
