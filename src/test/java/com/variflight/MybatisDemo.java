@@ -4,6 +4,17 @@ import com.variflight.entity.TPosition;
 import com.variflight.entity.TUser;
 import com.variflight.mapper.TUserMapper;
 import org.apache.ibatis.io.Resources;
+import org.apache.ibatis.reflection.DefaultReflectorFactory;
+import org.apache.ibatis.reflection.MetaObject;
+import org.apache.ibatis.reflection.Reflector;
+import org.apache.ibatis.reflection.ReflectorFactory;
+import org.apache.ibatis.reflection.factory.DefaultObjectFactory;
+import org.apache.ibatis.reflection.factory.ObjectFactory;
+import org.apache.ibatis.reflection.property.PropertyTokenizer;
+import org.apache.ibatis.reflection.wrapper.BeanWrapper;
+import org.apache.ibatis.reflection.wrapper.DefaultObjectWrapperFactory;
+import org.apache.ibatis.reflection.wrapper.ObjectWrapper;
+import org.apache.ibatis.reflection.wrapper.ObjectWrapperFactory;
 import org.apache.ibatis.session.ExecutorType;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
@@ -13,8 +24,8 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
-import java.util.List;
+import java.lang.reflect.Constructor;
+import java.util.*;
 
 /**
  * @author XieYufeng
@@ -109,5 +120,66 @@ public class MybatisDemo {
 
         sqlSession.commit();
         System.out.println("------------------");
+    }
+
+    @Test
+    public void testReflection() {
+
+        // 反射工具类初始化
+        ObjectFactory objectFactory = new DefaultObjectFactory();
+        ObjectWrapperFactory objectWrapperFactory = new DefaultObjectWrapperFactory();
+        ReflectorFactory reflectorFactory = new DefaultReflectorFactory();
+        TUser user = objectFactory.create(TUser.class);
+        MetaObject metaObject = MetaObject.forObject(user, objectFactory, objectWrapperFactory, reflectorFactory);
+
+        // 使用Reflector读取类元信息
+        Reflector reflector = reflectorFactory.findForClass(TUser.class);
+        Constructor<?> constructor = reflector.getDefaultConstructor();
+        System.out.println("constructor ## " + constructor);
+        String[] setablePropertyNames =  reflector.getSetablePropertyNames();
+        System.out.println("setablePropertyNames ## " + Arrays.toString(setablePropertyNames));
+        String[] getablePropertyNames = reflector.getGetablePropertyNames();
+        System.out.println("getablePropertyNames ## " + Arrays.toString(getablePropertyNames));
+
+        // 使用ObjectWrapper读取对象信息，并对对象属性进行赋值操作
+        TUser userTemp = new TUser();
+        ObjectWrapper objectWrapper = new BeanWrapper(metaObject, userTemp);
+        String[] getterNames = objectWrapper.getGetterNames();
+        System.out.println("getterNames ## " + Arrays.toString(getterNames));
+        String[] setterNames = objectWrapper.getSetterNames();
+        System.out.println("setterNames ## " + Arrays.toString(setterNames));
+
+        PropertyTokenizer prop = new PropertyTokenizer("userName");
+        objectWrapper.set(prop, "风光无限");
+        System.out.println(userTemp.toString());
+        System.out.println("+++++++++++++++++++++++++++++++++++++++++++");
+        /**
+         * 模拟数据库行数据转化为对象
+         */
+        // 1、模拟从数据库读取数据
+        Map<String, Object> dbResult = new HashMap<>();
+        dbResult.put("real_name", "峰哥");
+        dbResult.put("user_name", "风光无限");
+        dbResult.put("mobile", "10086");
+        TPosition position = new TPosition();
+        position.setId(1);
+        dbResult.put("position_id", position);
+        // 2、模拟映射关系
+        Map<String, Object> mapper = new HashMap<>();
+        mapper.put("realName", "real_name");
+        mapper.put("userName", "user_name");
+        mapper.put("mobile", "mobile");
+        mapper.put("position", "position_id");
+
+        // 使用反射工具类将行数据转换为pojo
+        BeanWrapper beanWrapper = (BeanWrapper) metaObject.getObjectWrapper();
+        Set<Map.Entry<String, Object>> entrySet = mapper.entrySet();
+        for (Map.Entry<String, Object> e : entrySet) {
+            Object propValue = e.getValue();
+            String propKey   = e.getKey();
+            PropertyTokenizer p = new PropertyTokenizer(propKey);
+            beanWrapper.set(p, dbResult.get(propValue));
+        }
+        System.out.println("模拟mybatis获取封装数据：" + metaObject.getOriginalObject());
     }
 }
