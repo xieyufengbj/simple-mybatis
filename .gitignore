@@ -27,6 +27,7 @@ hs_err_pid*
 .idea/
 netty.log
 target/
+simple-mybatis.iml
 
 
 
